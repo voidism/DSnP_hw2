@@ -206,7 +206,7 @@ CmdParser::deleteLine()
 {
    // TODO...
    for(int i = 0; i<READ_BUF_SIZE; i++){
-       *(_readBuf + i)=' ';
+       *(_readBuf + i)=char(0);
        if ((_readBuf + i) >= _readBufEnd){
            break;
        }
@@ -238,8 +238,10 @@ void
 CmdParser::moveToHistory(int index)
 {
    // TODO...
+   bool inbottom = _historyIdx == (int)_history.size();
+   bool intop = _historyIdx == 0;
    if(0 <= index && index < (int)_history.size()){
-         if(index <= _historyIdx){//move up
+         if(index < _historyIdx){//move up
             if(_historyIdx == (int)_history.size() ){
                //if you begin from the newest line and
                //there have not store anything yet
@@ -252,22 +254,33 @@ CmdParser::moveToHistory(int index)
                for(int i=0; i<longs; i++){
                     tmp = tmp + *(_readBuf + i);
                }
-               //cout << "\n" << ">>> temp line stored: " << tmp;
+               //cout << "\n" << ">>> temp line stored: " << tmp << '\n';
                _history.push_back(tmp);
+               //cout << "\n" << ">>> after stored: " << _history[_history.size()-1] << '\n';
                }
             }
           }
-          else if(index > _historyIdx){//move down
-              if(index == (int)_history.size() - 1 && _tempCmdStored){
+          int reserve_historyIdx = _historyIdx;
+          int reserve_index = index;
+          _historyIdx = index;
+          retrieveHistory();
+          if(reserve_index > reserve_historyIdx){//move down
+              if(reserve_index == (int)_history.size() - 1 && _tempCmdStored){
                     _history.pop_back();
                     _tempCmdStored = false;
               }
           }
-        _historyIdx = index;
-        retrieveHistory();
    }
    else{
-        mybeep();
+        if(inbottom||intop)
+            mybeep();
+        if (_history.size()!=0){
+            if(0 > index)
+                moveToHistory(0);
+            else if (!inbottom && index >= (int)_history.size())//if in bottom and press down, just beep!
+                if(_tempCmdStored)
+                moveToHistory((int)_history.size()-1);
+        }
    }
 }
 
@@ -318,10 +331,8 @@ CmdParser::addHistory()
        if(!allspaceflag){
 
            string tmp = "";
-           int j = 0;
            for(int i=starts; i<=ends; i++){
                 tmp = tmp + *(_readBuf + i);
-                j++;
            }
            //cout << "\n" << tmp;
            _history.push_back(tmp);
@@ -340,7 +351,7 @@ void
 CmdParser::retrieveHistory()
 {
    deleteLine();
-   strcpy(_readBuf, _history[_historyIdx].c_str());//tmp);
+   strcpy(_readBuf, _history[_historyIdx].c_str());
    //cout << _readBuf;
    _readBufPtr = _readBufEnd = _readBuf + _history[_historyIdx].size();
 }
