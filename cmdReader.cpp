@@ -11,6 +11,7 @@
 #include "cmdParser.h"
 #include <string>
 #include <sys/ioctl.h>
+#include <sstream>
 
 using namespace std;
 
@@ -67,7 +68,6 @@ CmdParser::readCmdInt(istream& istr)
          case UNDEFINED_KEY:   mybeep(); break;
          default:  // printable character
             insertChar(char(pch));
-            _tempCmdStored = false;
             break;
       }
       cout << '\r' << "cmd> ";
@@ -139,7 +139,7 @@ CmdParser::deleteChar()
    // TODO...
    if(_readBufPtr == _readBufEnd){
        mybeep();
-       //cout << "87\n";
+       //cout << "you are 87!\n";
        return false;
    }
    else{
@@ -175,6 +175,7 @@ CmdParser::insertChar(char ch, int repeat)
 {
    // TODO...
    assert(repeat >= 1);
+   for(int i = 0; i < repeat; i++){
    char* iter = _readBufEnd;
    while(iter != _readBufPtr ){
        *iter = *( iter - 1 );
@@ -183,6 +184,7 @@ CmdParser::insertChar(char ch, int repeat)
    *_readBufPtr = ch;
    _readBufEnd = _readBufEnd + 1;
    moveBufPtr(_readBufPtr + 1);
+   }
 }
 
 // 1. Delete the line that is currently shown on the screen
@@ -236,12 +238,31 @@ void
 CmdParser::moveToHistory(int index)
 {
    // TODO...
-   if(0 <= index && index <= (int)_history.size()){
-        if(_historyIdx == (int)_history.size()){
-           _tempCmdStored = true;
-           string tmp = string(_readBuf);
-           _history.push_back(tmp);
-        }
+   if(0 <= index && index < (int)_history.size()){
+         if(index <= _historyIdx){//move up
+            if(_historyIdx == (int)_history.size() ){
+               //if you begin from the newest line and
+               //there have not store anything yet
+               //push_back the _readBuf!
+               _tempCmdStored = true;
+               if (_readBufEnd == _readBuf) _history.push_back("");
+               else{
+               string tmp = "";
+               int longs = (_readBufEnd - _readBuf) / sizeof(*_readBufEnd);
+               for(int i=0; i<longs; i++){
+                    tmp = tmp + *(_readBuf + i);
+               }
+               //cout << "\n" << ">>> temp line stored: " << tmp;
+               _history.push_back(tmp);
+               }
+            }
+          }
+          else if(index > _historyIdx){//move down
+              if(index == (int)_history.size() - 1 && _tempCmdStored){
+                    _history.pop_back();
+                    _tempCmdStored = false;
+              }
+          }
         _historyIdx = index;
         retrieveHistory();
    }
@@ -267,11 +288,16 @@ void
 CmdParser::addHistory()
 {
    // TODO...
+   if (_tempCmdStored == true){
+       //cout << '\n' << "temp delete: " << _history[_history.size() - 1];
+       _history.pop_back();
+       _tempCmdStored = false;
+   }
    if (_readBuf != _readBufEnd){
        int starts;
        int ends;
        int longs = (_readBufEnd - _readBuf) / sizeof(*_readBufEnd);
-       cout << '\n' << longs;
+       //cout << '\n' << longs;
        bool allspaceflag = true;
        for(int iter = 0; iter < longs; iter++){
             if(*(_readBuf+iter) != ' '){
@@ -287,17 +313,17 @@ CmdParser::addHistory()
                 break;
             }
        }
-       int sizes = ends - starts +1;
-       cout << '\n' << "sizes:" << sizes << ", starts:" << starts << ", ends:" << ends;
+       //int sizes = ends - starts +1;
+       //cout << '\n' << "sizes:" << sizes << ", starts:" << starts << ", ends:" << ends;
        if(!allspaceflag){
-           char tmpchr[sizes];
+
+           string tmp = "";
            int j = 0;
            for(int i=starts; i<=ends; i++){
-                tmpchr[j] = *(_readBuf + i);
+                tmp = tmp + *(_readBuf + i);
                 j++;
            }
-           string tmp = string(tmpchr);
-           cout << '\n' << tmpchr;
+           //cout << "\n" << tmp;
            _history.push_back(tmp);
            _historyIdx = _history.size();
        }
@@ -314,7 +340,7 @@ void
 CmdParser::retrieveHistory()
 {
    deleteLine();
-   strcpy(_readBuf, _history[_historyIdx].c_str());
-   cout << _readBuf;
+   strcpy(_readBuf, _history[_historyIdx].c_str());//tmp);
+   //cout << _readBuf;
    _readBufPtr = _readBufEnd = _readBuf + _history[_historyIdx].size();
 }
