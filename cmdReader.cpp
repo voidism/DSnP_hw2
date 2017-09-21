@@ -272,7 +272,9 @@ CmdParser::moveToHistory(int index)
           }
    }
    else{
-        if(inbottom||intop)
+        if(inbottom&&(index > _historyIdx))
+            mybeep();
+        else if(intop&&(index < _historyIdx))
             mybeep();
         if (_history.size()!=0){
             if(0 > index)
